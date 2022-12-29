@@ -28,7 +28,9 @@ jwt = JWTManager()
 # 設定 JWT 密鑰
 app.config['JWT_SECRET_KEY'] = '48daa819eb2b4ec190627f4b8331f0ea'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(hours=1)
+# app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(minutes=1)
 app.config["JWT_REFRESH_TOKEN_EXPIRES"] = datetime.timedelta(days=30)
+
 jwt = JWTManager(app)
 jwt.init_app(app)
 
@@ -75,8 +77,7 @@ class User(UserMixin, db.Model):
     password = db.Column(db.String(100))
     name = db.Column(db.String(100))
 
-
-    favorite_spots = relationship("FavoriteTouristSpot", back_populates="spot_user")
+    favorite_spots = relationship("FavoriteTouristSpot", back_populates="spot_user", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {column.name: getattr(self, column.name) for column in self.__table__.columns}
@@ -130,8 +131,6 @@ def register():
         data = request.get_json()
         hash_and_salt_password = generate_password_hash(
             data.get("password"),
-            # request.form.get('password'),
-            # "qwerasdzz",
             method="pbkdf2:sha256",
             salt_length=8
         )
@@ -139,8 +138,6 @@ def register():
             name=data.get("username"),
             email=data.get("useremail"),
             password=hash_and_salt_password,
-            # name="Alice",
-            # email="test1@gmail.com",
         )
         db.session.add(new_user)
         db.session.commit()
@@ -153,10 +150,8 @@ def register():
 @app.route('/api/login', methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        # data = request.get_json()
         email = request.json.get("useremail")
         password = request.json.get("password")
-        # password = data.get("password")
         # email = "test1@gmail.com"
         # password = "qwerasdzz"
 
@@ -164,19 +159,16 @@ def login():
         if not user:
             return jsonify(error={"status": 401, "error": "查無此 email 的帳號"}), 401
         elif not check_password_hash(user.password, password):
-            return jsonify(error={"status": 401, "error": "帳號或密碼有誤"}), 401
+            return jsonify(error={"status": 401, "error": "密碼有誤"}), 401
         else:
             print(user.favorite_spots, user.email)
             access_token = create_access_token(identity={"username": user.name, "userid": user.id}, fresh=True)
             refresh_token = create_refresh_token(identity={"username": user.name, "userid": user.id})
             login_user(user)
-            # session["name"] = user.name
-            # session["email"] = user.email
             session["id"] = user.id
             session["is_logged"] = True
             print(session["id"], session["is_logged"])
             # access_token = create_access_token(identity=get_jwt()['exp'])
-            # print(get_jwt()['exp'])
             return jsonify(success={"status": 200, "success": "成功登入", "access_token": access_token,
                                     "refresh_token": refresh_token, "user_id": user.id})
 
@@ -201,6 +193,8 @@ def refresh():
 @jwt_required()
 def check_login():
     try:
+        exp = get_jwt()['exp']
+        print(exp)
         return jsonify(success={"success": "確認登入"})
 
     except:
@@ -244,16 +238,8 @@ def add_tourist_spot():
     return jsonify(success={"success": "成功建立景點"})
 
 
-# @jwt_required
-# def protected():
-#     identity = get_jwt_identity()
-#     return {
-#         'identity': identity
-#     }
-
 # 編輯景點 put
 @app.route('/api/revise-tourist-spot/<int:tourist_spot_id>', methods=["PUT"])
-# @jwt_required()
 def revise_tourist_spot(tourist_spot_id):
     data = request.get_json()
 
@@ -296,62 +282,37 @@ def add_favorite(tourist_spot_id):
     identity = get_jwt_identity()  # 從 jwt 取得身分資訊
     user = User.query.filter_by(id=identity["userid"]).first()
     added_spots = [spot.add_favorite_id for spot in user.favorite_spots]
-    print(identity)
+    # print(identity)
+
+    # if tourist_spot_id in added_spots:
+    #     return jsonify(error={"error": "不可重複加入景點"}), 400
+    # else:
+    new_favorite_spot = FavoriteTouristSpot(
+        add_favorite_id=tourist_spot_id,
+        spot_user=user,
+        spot_user_id=identity["userid"]
+    )
+
+    db.session.add(new_favorite_spot)
+    db.session.commit()
     print(added_spots)
-    # print(tourist_spot_id in added_spots)
-
-    if tourist_spot_id in added_spots:
-        return jsonify(error={"error": "不可重複加入景點"}), 400
-    else:
-        new_favorite_spot = FavoriteTouristSpot(
-            add_favorite_id=tourist_spot_id,
-            spot_user=user,
-            spot_user_id=identity["userid"]
-        )
-
-        db.session.add(new_favorite_spot)
-        db.session.commit()
-        return jsonify(success={"success": "成功將景點加入收藏", "added_favorite_id": added_spots})
+    return jsonify(success={"success": "成功將景點加入收藏", "added_favorite_id": added_spots})
 
 
 # 刪除單一收藏
 @app.route('/api/delete-favorite/<int:tourist_spot_id>', methods=['DELETE'])
 @jwt_required()
 def remove_favorite(tourist_spot_id):
-    # identity_id = get_jwt_identity()["userid"]
-    favorite_spot = FavoriteTouristSpot.query.filter_by(spot_user_id=tourist_spot_id)
-    user = db.session.query(User).filter_by(id=favorite_spot.spot_user_id).first()
-
-    # print(favorite_spot)
-    # print(user.favorite_spots.filter(id=favorite_spot.add_favorite_id))
-    # print(db.session.delete(favorite_spot))
-    # db.session.delete(favorite_spot)
-    print(favorite_spot.remove(favorite_spot))
-    # favorite_spot.user.remove(favorite_spot)
-    # print(user.favorite_spots.remove(favorite_spot))
+    identity_id = get_jwt_identity()["userid"]
+    favorite_spot = FavoriteTouristSpot.query.filter_by(add_favorite_id=tourist_spot_id,
+                                                        spot_user_id=identity_id).first()
+    # user = db.session.query(User).filter_by(id=identity_id).first()
     # user.favorite_spots.remove(favorite_spot)
-    # db.session.commit()
-    # print(user.favorite_spots)
-    # print(db.session.query(FavoriteTouristSpot).filter(FavoriteTouristSpot.add_favorite_id == tourist_spot_id &
-    #                                                    FavoriteTouristSpot.spot_user_id == user.id))
-    # db.session.query(FavoriteTouristSpot).filter(FavoriteTouristSpot.spot_user_id == user.id).delete()
+    print(favorite_spot.spot_user_id)
+    db.session.delete(favorite_spot)
+    db.session.commit()
 
-    # db.session.commit()
-
-    # for favorite in user.favorite_spots:
-    #     if favorite.add_favorite_id == tourist_spot_id:
-    #         # print(favorite.add_favorite_id)
-    #         delete_favorite = db.session.query(FavoriteTouristSpot).get(tourist_spot_id)
-    #         print(delete_favorite.add_favorite_id)
-    #     # print(favorite.add_favorite_id)
-
-    # delete_favorite = db.session.query(FavoriteTouristSpot).get(tourist_spot_id)
-    # print(delete_favorite.add_favorite_id)
-    # db.session.delete(delete_favorite)
-    # db.session.commit()
     return jsonify(success={"success": "成功移除收藏"})
-
-
 
 
 # 取得收藏列表
@@ -361,6 +322,9 @@ def get_favorite():
     identity_id = get_jwt_identity()["userid"]
     user = User.query.filter_by(id=identity_id).first()
     user_favorite_spot = []
+    # if len(user_favorite_spot) == 0:
+    #     return jsonify(favorite=[])
+
     for spot in user.favorite_spots:
         single_spot = TouristSpot.query.filter_by(id=spot.add_favorite_id).first()
         user_favorite_spot.append(single_spot)
