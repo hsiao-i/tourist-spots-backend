@@ -49,7 +49,7 @@ jwt.init_app(app)
 # CORS(app)
 # cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
 cors = CORS(app, resources={r"/.*": {"origins": ["http://127.0.0.1", "https://tourist-spots-backend.onrender.com",
-                                                 "https://hsiao-i.github.io"]}})
+                                                 "https://hsiao-i.github.io", "http://localhost:8080"]}})
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -298,19 +298,19 @@ def add_favorite(tourist_spot_id):
     added_spots = [spot.add_favorite_id for spot in user.favorite_spots]
     # print(identity)
 
-    # if tourist_spot_id in added_spots:
-    #     return jsonify(error={"error": "不可重複加入景點"}), 400
-    # else:
-    new_favorite_spot = FavoriteTouristSpot(
-        add_favorite_id=tourist_spot_id,
-        spot_user=user,
-        spot_user_id=identity["userid"]
-    )
+    if tourist_spot_id in added_spots:
+        return jsonify(error={"error": "不可重複加入景點"}), 400
+    else:
+        new_favorite_spot = FavoriteTouristSpot(
+            add_favorite_id=tourist_spot_id,
+            spot_user=user,
+            spot_user_id=identity["userid"]
+        )
 
-    db.session.add(new_favorite_spot)
-    db.session.commit()
-    print(added_spots)
-    return jsonify(success={"success": "成功將景點加入收藏", "added_favorite_id": added_spots})
+        db.session.add(new_favorite_spot)
+        db.session.commit()
+        print(added_spots)
+        return jsonify(success={"success": "成功將景點加入收藏", "added_favorite_id": added_spots})
 
 
 # 刪除單一收藏
