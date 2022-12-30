@@ -12,6 +12,10 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required, get_jwt, \
     create_refresh_token
 import os
+from dotenv import load_dotenv
+load_dotenv()
+# from dotenv import load_dotenv
+# load_dotenv()
 
 # import redis
 # from flask_session import Session
@@ -23,9 +27,14 @@ app.app_context().push()
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:///tourist-spot.db")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
+app.config['SESSION_TYPE'] = 'filesystem'
+# app.config.from_object(__name__)
 db = SQLAlchemy(app)
 # db.init_app(app)
 migrate = Migrate(app, db)
+
+print(app.config['SQLALCHEMY_DATABASE_URI'])
+print(app.config['SECRET_KEY'])
 
 jwt = JWTManager()
 # 設定 JWT 密鑰
@@ -168,9 +177,9 @@ def login():
             access_token = create_access_token(identity={"username": user.name, "userid": user.id}, fresh=True)
             refresh_token = create_refresh_token(identity={"username": user.name, "userid": user.id})
             login_user(user)
-            session["id"] = user.id
-            session["is_logged"] = True
-            print(session["id"], session["is_logged"])
+            # session["id"] = user.id
+            # session["is_logged"] = True
+            # print(session["id"], session["is_logged"])
             # access_token = create_access_token(identity=get_jwt()['exp'])
             return jsonify(success={"status": 200, "success": "成功登入", "access_token": access_token,
                                     "refresh_token": refresh_token, "user_id": user.id})
@@ -335,4 +344,5 @@ def get_favorite():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=10000)
+    # app.run(debug=True)
