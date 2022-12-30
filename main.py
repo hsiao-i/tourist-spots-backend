@@ -11,6 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required, get_jwt, \
     create_refresh_token
+import os
 
 # import redis
 # from flask_session import Session
@@ -18,10 +19,12 @@ from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity
 app = Flask(__name__)
 app.app_context().push()
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tourist-spot.db'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tourist-spot.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:///tourist-spot.db")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = '44ab4a5608d74d698580db20d08747f1'
+app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
 db = SQLAlchemy(app)
+# db.init_app(app)
 migrate = Migrate(app, db)
 
 jwt = JWTManager()
