@@ -47,7 +47,8 @@ jwt = JWTManager(app)
 jwt.init_app(app)
 
 # CORS(app)
-cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
+# cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
+cors = CORS(app, resources={r"/.*": {"origins": ["http://127.0.0.1", "https://tourist-spots-backend.onrender.com"]}})
 
 login_manager = LoginManager()
 login_manager.init_app(app)
