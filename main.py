@@ -115,11 +115,11 @@ db.create_all()
 # db.session.add(new_tourist_spot)
 # db.session.commit()
 
-new_favorite = FavoriteTouristSpot(
-    add_favorite_id=1,
-    spot_user_id=6
-)
-db.session.add(new_favorite)
+# new_favorite = FavoriteTouristSpot(
+#     add_favorite_id=1,
+#     spot_user_id=6
+# )
+# db.session.add(new_favorite)
 
 
 # db.session.commit()
